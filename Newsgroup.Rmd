@@ -1,0 +1,226 @@
+---
+title: "text analytics"
+author: "Sheetal"
+date: "1/20/2019"
+output: html_document
+---
+```{r}
+rm(list=ls())
+```
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(tidytext)
+library(readtext)
+library(textstem)
+ library(tm) 
+ library(tidyverse)
+ library(tidytext)
+ library(wordcloud)
+
+ library(ggraph)
+ library(caret)
+ library(tibble)
+library(dplyr)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+library(e1071)
+```
+
+```{r}
+Folder=list.files(path="~/Documents/DMG1/Sheetal Golecha/20_newsgroups")
+```
+
+```{r}
+df <- data.frame(folder=character(),
+                 filename=character(),
+                 content=character())
+str(df)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+```{r}
+folder
+```
+
+```{r pressure, echo=FALSE}
+file_name<-list()
+folder_name<-list()
+folder_name<-list()
+j=0
+for(i in Folder) {
+  
+   if(!str_detect(i,".Rmd"))
+   {
+     if(!str_detect(i,".ipynb"))
+     {
+      for (k in list.files(path=paste0("~/Documents/DMG1/Sheetal Golecha/20_newsgroups/",i))){
+        
+        file_name[j]=paste0(i,"/",k)
+        folder_name[j]=i
+        j=j+1
+      }
+     }
+   }
+  
+}
+```
+
+```{r}
+
+File_name_df<-as.data.frame(unlist(file_name))
+colnames(File_name_df)[1] <- "File_name"
+#Final<-cbind(Folder_df,File_name_df)
+
+```
+
+```{r}
+content<-list()
+for(i in 1:nrow(File_name_df))
+{
+  #Final['content'][[i]]<-read.table(~/Documents/DMG1/Sheetal Golecha/20_newsgroups/alt.atheism/51060)
+    #print(paste0("~/Documents/DMG1/Sheetal Golecha/20_newsgroups/",Final$Folder[[i]],"/",Final$File_name[[i]]))
+  
+  z<-readtext(paste0("~/Documents/DMG1/Sheetal Golecha/20_newsgroups/",File_name_df$File_name[[i]]))
+content[i]<-z$text
+}
+```
+
+```{r}
+Folder_name_df<-as.data.frame(unlist(folder_name))
+colnames(Folder_name_df)[1] <- "Folder_name"
+content_df<-as.data.frame(unlist(content))
+colnames(content_df)[1] <- "content"
+```
+
+```{r}
+Final<-cbind(Folder_name_df,content_df)
+Final <- Final[sample(nrow(Final)),]
+```
+
+```{r}
+set.seed(1234)
+Final <- Final[sample(nrow(Final)), ]
+Final <- Final[sample(nrow(Final)), ]
+Final$content <- as.factor(Final$content)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r}
+corpus <- Corpus(VectorSource(Final$content))
+inspect(corpus[1:5])
+```
+
+```{r}
+corpus.clean_text <- corpus %>%
+  tm_map(content_transformer(tolower)) %>% 
+  tm_map(removePunctuation) %>%
+  tm_map(removeNumbers) %>%
+  tm_map(removeWords, stopwords(kind="en")) %>%
+  tm_map(stripWhitespace)
+```
+
+```{r}
+dtm <- DocumentTermMatrix(corpus.clean_text)
+# Inspect the dtm
+inspect(dtm[1:10, 1:15])
+```
+
+```{r}
+dim(Final)
+```
+
+```{r}
+
+dtm.train <- dtm[1:15000,]
+dtm.test <- dtm[15001:19996,]
+
+
+```
+
+```{r}
+highfreqwords <- findFreqTerms(dtm.train, 100)
+length((highfreqwords))
+```
+
+```{r}
+#dtm_train_nb <- DocumentTermMatrix(corpus.clean.train, control=list(dictionary = highfreqwords))
+
+ #dtm_test_nb<- DocumentTermMatrix(corpus.clean.test, control=list(dictionary = highfreqwords))
+dtm_freq_train <- dtm.train[ , highfreqwords]
+dtm_freq_test <- dtm.test[ , highfreqwords]
+Final.train.label <- Final[1:15000,]$Folder_name
+Final.test.label <- Final[15001:19996,]$Folder_name
+```
+
+```{r}
+dtm.train[ , highfreqwords]
+```
+
+
+
+
+
+```{r}
+convert_count <- function(x) {
+  x <- ifelse(x > 0, "Yes", "No")
+}
+```
+
+```{r}
+train_NB <- apply(dtm_freq_train, 2, convert_count)
+test_NB <- apply(dtm_freq_test, 2, convert_count)
+```
+
+```{r}
+dim(train_NB)
+```
+
+```{r}
+train_labels <- Final[1:15000, ]$Folder_name
+test_labels <- Final[15001:19996,]$Folder_name
+prop.table(table(train_labels))
+classifier <- naiveBayes(train_NB, train_labels, laplace = 30)
+```
+
+
+
+```{r}
+prop.table(table(test_labels))
+```
+
+
+
+```{r}
+ pred_train <- predict(classifier, newdata=train_NB)
+```
+
+```{r}
+pred_test <- predict(classifier, newdata=test_NB)
+```
+
+```{r}
+table("Predictions"= pred_train,  "Actual" = train_labels )
+```
+
+```{r}
+table("Predictions"= pred_test,  "Actual" = test_labels)
+```
+
+```{r}
+confusionMatrix(pred_test, test_labels)
+```
+
+```{r}
+confusionMatrix(pred_train,train_labels)
+```
+
